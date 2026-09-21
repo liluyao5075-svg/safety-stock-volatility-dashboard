@@ -6,7 +6,7 @@ A single-file, offline HTML dashboard for reviewing safety stock volatility acro
 
 ![截图](docs/screenshot.png)
 
-在线体验（启用 GitHub Pages 后可用）：`https://<你的用户名>.github.io/<仓库名>/`
+在线体验（启用 GitHub Pages 后可用）：` https://liluyao5075-svg.github.io/safety-stock-volatility-dashboard/
 
 ## 功能
 
