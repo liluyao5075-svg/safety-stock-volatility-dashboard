@@ -1,0 +1,782 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>安全库存波动看板</title>
+<style>
+:root{
+  --deep:#0B2A3C; --petrol:#00808A; --petrol-dark:#00666E; --tint:#E3F1F2;
+  --paper:#F3F6F7; --card:#FFFFFF; --line:#DCE3E7; --line-strong:#B9C6CD;
+  --ink:#14232E; --ink2:#4A5B67; --ink3:#7A8A95;
+  --blue:#1F6FB2; --amber:#D9822B; --sky:#8FB3D1; --up:#B93A2E; --down:#1E8A5A;
+  --font:"Segoe UI","PingFang SC","Microsoft YaHei","Noto Sans CJK SC","Helvetica Neue",Arial,sans-serif;
+}
+*{box-sizing:border-box}
+html{-webkit-text-size-adjust:100%}
+body{margin:0;background:var(--paper);color:var(--ink);font:14px/1.6 var(--font)}
+button,select,input{font:inherit;color:inherit}
+:focus-visible{outline:2px solid var(--petrol);outline-offset:2px}
+[hidden]{display:none!important}
+
+.top{background:var(--deep);color:#fff;padding:18px 24px 14px}
+.top :focus-visible{outline-color:#7FD6DC}
+.wrap{max-width:1240px;margin:0 auto}
+.top-row{display:flex;flex-wrap:wrap;align-items:center;justify-content:space-between;gap:12px 24px}
+h1{font-size:20px;line-height:1.3;margin:0;font-weight:600}
+.sub{margin:2px 0 0;font-size:13px;color:#A9C1CE}
+.btn-primary{background:var(--petrol);color:#fff;border:0;border-radius:4px;padding:8px 18px;cursor:pointer;font-weight:600}
+.btn-primary:hover{background:var(--petrol-dark)}
+.btn-ghost{background:transparent;border:1px solid rgba(255,255,255,.4);color:#fff;border-radius:4px;padding:7px 14px;cursor:pointer}
+.btn-ghost:hover{background:rgba(255,255,255,.12)}
+.btn-line{background:#fff;border:1px solid var(--line-strong);border-radius:4px;padding:6px 14px;cursor:pointer}
+.btn-line:hover{border-color:var(--petrol);color:var(--petrol-dark)}
+.actions{display:flex;gap:10px;align-items:center}
+.chips{display:flex;flex-wrap:wrap;gap:8px;align-items:center;margin-top:12px;min-height:28px}
+.chip{display:inline-flex;align-items:center;gap:4px;background:rgba(255,255,255,.1);border:1px solid rgba(255,255,255,.28);border-radius:14px;padding:1px 3px 1px 12px;font-size:13px}
+.chip small{color:#A9C1CE;margin-left:2px}
+.chip button{background:none;border:0;color:#A9C1CE;cursor:pointer;width:22px;height:22px;border-radius:50%;line-height:1;font-size:16px}
+.chip button:hover{background:rgba(255,255,255,.18);color:#fff}
+.msg{font-size:13px;color:#A9C1CE}
+.msg.err{color:#FFB4A8}
+.msg.ok{color:#9BE0C0}
+
+.filters{background:#fff;border-bottom:1px solid var(--line);padding:10px 24px}
+.filters .wrap{display:flex;flex-wrap:wrap;gap:10px 18px;align-items:center}
+.filters label{display:flex;align-items:center;gap:8px;color:var(--ink2);font-size:13px}
+.filters select,.filters input{background:#fff;border:1px solid var(--line-strong);border-radius:4px;padding:5px 10px;min-width:140px;color:var(--ink)}
+.filters input{min-width:170px}
+
+main{max-width:1240px;margin:0 auto;padding:20px 24px 48px}
+.stats{display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));background:var(--card);border:1px solid var(--line);border-radius:6px}
+.stat{padding:14px 20px;border-left:1px solid var(--line)}
+.stats .stat:first-child{border-left:0}
+.stat-label{font-size:13px;color:var(--ink2)}
+.stat-value{font-size:24px;font-weight:600;line-height:1.3;font-variant-numeric:tabular-nums}
+.stat-note{font-size:13px;color:var(--ink2);font-variant-numeric:tabular-nums}
+.up{color:var(--up)} .down{color:var(--down)} .flat{color:var(--ink3)}
+
+.card{background:var(--card);border:1px solid var(--line);border-radius:6px;margin-top:16px}
+.card-head{padding:14px 20px 0}
+.card-head h2{margin:0;font-size:16px;font-weight:600}
+.card-head p{margin:2px 0 0;color:var(--ink2);font-size:13px}
+.card-body{padding:8px 20px 18px}
+.legend{display:flex;flex-wrap:wrap;gap:6px 16px;font-size:12px;color:var(--ink2);margin:6px 0 0}
+.legend span{display:inline-flex;align-items:center;gap:6px}
+.sw{display:inline-block;width:10px;height:10px;border-radius:2px}
+.ln{display:inline-block;width:18px;border-top:2px solid}
+.ln.dash{border-top-style:dashed}
+svg text{font-family:var(--font)}
+svg .halo{paint-order:stroke;stroke:#fff;stroke-width:3px;stroke-linejoin:round}
+.dot{cursor:pointer}
+.dot:focus-visible{outline:none;stroke:var(--deep);stroke-width:2.5}
+
+.empty{padding:36px 24px;text-align:center;color:var(--ink2)}
+.empty h2{margin:0 0 6px;font-size:18px;color:var(--ink)}
+.empty p{margin:4px auto;max-width:520px}
+.placeholder{padding:28px 8px;text-align:center;color:var(--ink3)}
+.cols{margin:14px auto 0;max-width:720px;text-align:left;font-size:13px}
+.cols summary{cursor:pointer;color:var(--petrol-dark)}
+.cols code{display:block;margin-top:8px;padding:10px 12px;background:var(--paper);border-radius:4px;word-break:break-all;font-size:12px;color:var(--ink2)}
+
+.part-head{display:flex;flex-wrap:wrap;align-items:baseline;gap:4px 18px;padding:2px 0 4px}
+.part-no{font-size:20px;font-weight:600}
+.part-desc{font-size:16px;color:var(--ink2)}
+.kv{display:flex;flex-wrap:wrap;gap:4px 22px;color:var(--ink2);font-size:13px}
+.kv b{color:var(--ink);font-weight:600}
+.qstrip{display:flex;flex-wrap:wrap;gap:10px;margin:12px 0 4px}
+.qcard{border:1px solid var(--line);border-radius:4px;padding:8px 14px;min-width:150px}
+.qcard .ql{font-size:12px;color:var(--ink2)}
+.qcard .qv{font-size:18px;font-weight:600;font-variant-numeric:tabular-nums}
+.qcard .qd{font-size:12px;font-variant-numeric:tabular-nums}
+.rdot{display:inline-block;width:8px;height:8px;border-radius:50%;background:var(--up);margin-right:7px}
+.tag-red{display:inline-block;font-size:12px;padding:0 8px;border-radius:3px;background:#FBE9E7;color:#8C2A20;border:1px solid #E7B4AC}
+.tag{display:inline-block;font-size:11px;padding:0 6px;border:1px solid var(--amber);color:#8A4E0F;border-radius:3px;margin-left:6px}
+.chart-title{font-size:14px;font-weight:600;margin:16px 0 0}
+.chart-sub{font-size:12px;color:var(--ink2)}
+
+.tablewrap{overflow:auto;max-height:560px;border-top:1px solid var(--line)}
+table{border-collapse:collapse;width:100%;font-size:13px;font-variant-numeric:tabular-nums}
+th{position:sticky;top:0;background:#F7F9FA;text-align:left;font-weight:600;border-bottom:1px solid var(--line-strong);padding:0;white-space:nowrap;z-index:1}
+th button{all:unset;box-sizing:border-box;display:block;width:100%;padding:9px 9px;cursor:pointer;color:var(--ink2)}
+th button:hover{color:var(--petrol-dark)}
+th button:focus-visible{outline:2px solid var(--petrol);outline-offset:-2px}
+th.num,td.num{text-align:right}
+th.num button{text-align:right}
+td{padding:8px 9px;border-bottom:1px solid var(--line);white-space:nowrap}
+tbody tr{cursor:pointer}
+tbody tr:hover{background:#F0F5F6}
+tbody tr.sel{background:var(--tint)}
+tbody tr:focus-visible{outline:2px solid var(--petrol);outline-offset:-2px}
+.sortmark{margin-left:4px;color:var(--petrol)}
+
+details.calc{margin-top:16px;background:var(--card);border:1px solid var(--line);border-radius:6px;padding:12px 20px}
+details.calc summary{cursor:pointer;font-weight:600}
+details.calc p{margin:8px 0 0;color:var(--ink2);max-width:860px}
+details.calc code{background:var(--paper);padding:1px 6px;border-radius:3px;font-size:13px}
+
+#tip{position:fixed;z-index:20;pointer-events:none;background:var(--deep);color:#fff;padding:8px 10px;border-radius:4px;font-size:12px;line-height:1.5;max-width:280px;display:none}
+#tip b{font-weight:600}
+#mask{position:fixed;inset:0;z-index:30;background:rgba(11,42,60,.82);color:#fff;display:none;align-items:center;justify-content:center;font-size:20px}
+body.drag #mask{display:flex}
+
+@media (max-width:640px){
+  .top,.filters{padding-left:14px;padding-right:14px}
+  main{padding:14px 14px 40px}
+  .card-head,.card-body{padding-left:14px;padding-right:14px}
+  .stat{border-left:0;border-top:1px solid var(--line)}
+  .stats .stat:first-child{border-top:0}
+}
+@media (prefers-reduced-motion:reduce){*{transition:none!important;scroll-behavior:auto!important}}
+</style>
+</head>
+<body>
+
+<header class="top">
+  <div class="wrap">
+    <div class="top-row">
+      <div>
+        <h1>安全库存波动看板</h1>
+        <p class="sub">上传库房导出的季度 CSV，看哪些料号的需求和交期不稳，安全库存随季度怎么变</p>
+      </div>
+      <div class="actions">
+        <input type="file" id="file" accept=".csv,text/csv" multiple hidden>
+        <button class="btn-primary" id="pick" type="button">选择 CSV 文件</button>
+        <button class="btn-ghost" id="clear" type="button" hidden>清除全部</button>
+      </div>
+    </div>
+    <div class="chips" id="chips" aria-live="polite"><span class="msg" id="msg">可以一次选多个季度的文件，也可以把文件拖进页面</span></div>
+  </div>
+</header>
+
+<section class="filters" id="filters" hidden>
+  <div class="wrap">
+    <label>供应商 <select id="fSup"></select></label>
+    <label>ABC 类别 <select id="fAbc"></select></label>
+    <label>料号 <input id="fSearch" type="search" placeholder="输入料号或描述"></label>
+    <button class="btn-line" id="fReset" type="button">重置筛选</button>
+  </div>
+</section>
+
+<main>
+  <section class="card empty" id="empty">
+    <h2>先上传季度 CSV</h2>
+    <p>点右上角的“选择 CSV 文件”，或把文件直接拖进页面。每个季度一个文件，Q1、Q2、Q3 可以同时选。</p>
+    <p>数据只在你这台电脑的浏览器里计算，不会上传到任何地方。</p>
+    <details class="cols">
+      <summary>文件需要包含哪些列</summary>
+      <code>Quarter, Part_No, Part_Desc, Supplier, Region, ABC_Class, Unit_Cost_EUR, LT_obs1_days 到 LT_obs6_days, EDI_LeadTime_days, WH_Demand_Wk1_units 到 WH_Demand_Wk8_units</code>
+    </details>
+  </section>
+
+  <div id="app" hidden>
+    <section class="stats" id="stats" aria-label="汇总指标"></section>
+
+    <section class="card">
+      <div class="card-head">
+        <h2>波动矩阵</h2>
+        <p id="mxCap"></p>
+        <div class="legend" id="mxLegend"></div>
+      </div>
+      <div class="card-body"><div id="matrix"></div></div>
+    </section>
+
+    <section class="card" id="detailCard">
+      <div class="card-head">
+        <h2>料号详情</h2>
+      </div>
+      <div class="card-body" id="detail"></div>
+    </section>
+
+    <section class="card">
+      <div class="card-head">
+        <h2>全部料号</h2>
+        <p id="tblCap"></p>
+      </div>
+      <div class="card-body" style="padding-left:0;padding-right:0"><div class="tablewrap" id="tbl"></div></div>
+    </section>
+
+    <details class="calc">
+      <summary>计算方法</summary>
+      <p><b>波动</b>用变异系数表示：标准差除以均值，这样不同用量、不同交期长短的料号可以放在一起比较。需求波动取库房 8 周实际出库量，交期波动取 6 笔历史交货天数。</p>
+      <p><b>交期取值</b>：先比较 6 笔历史交期的均值和供应商 EDI 通知的交期，两者相差超过历史均值的 20% 时，改用 EDI 交期作为交期均值，并把历史标准差放大 1.2 倍；相差在 20% 以内，继续用历史实绩。</p>
+      <p><b>安全库存</b> = <code>1.65 × √( L × σ需求² + D² × σ交期² )</code>。L 是交期均值（天），σ交期 是交期标准差（天），D 和 σ需求 是<b>每日</b>需求的均值和标准差；1.65 对应约 95% 的服务水平。交期完全稳定（σ交期 = 0）时，公式就是常见的 Z × σ × √L。</p>
+      <p><b>单位换算</b>：库房给的是每周出库量，所以先换算成每日：日均 = 周均 ÷ 7，日标准差 = 周标准差 ÷ √7（假设每天的需求相互独立）。</p>
+      <p><b>安全库存波动</b>：一个料号各季度安全库存的变异系数（标准差除以均值），越大说明它的安全库存在季度之间起伏越大。矩阵和表格里标红的，是当前筛选范围内这个数最大的 5 个料号。</p>
+      <p><b>矩阵</b>：位置是已加载各季度需求波动、交期波动的平均值，圆圈大小是各季度安全库存的平均值。点击圆圈会显示这个料号每个季度各自的位置。</p>
+    </details>
+  </div>
+</main>
+
+<div id="tip" role="tooltip"></div>
+<div id="mask">松开鼠标，上传 CSV 文件</div>
+
+<script>
+(function(){
+'use strict';
+
+var LTK=[1,2,3,4,5,6].map(function(i){return 'LT_obs'+i+'_days';});
+var WKK=[1,2,3,4,5,6,7,8].map(function(i){return 'WH_Demand_Wk'+i+'_units';});
+var REQ=['Quarter','Part_No','Part_Desc','Supplier','Region','ABC_Class','Unit_Cost_EUR','EDI_LeadTime_days'].concat(LTK,WKK);
+var Z=1.65, EDI_TOL=0.2, EDI_STD_UP=1.2, DAYS=7;
+
+var C={red:'#B93A2E',blue:'#1F6FB2',amber:'#D9822B',sky:'#8FB3D1',petrol:'#00808A',deep:'#0B2A3C',grey:'#5B6B76',grid:'#E3E9EC',ink3:'#7A8A95',ink2:'#4A5B67'};
+var NS='http://www.w3.org/2000/svg';
+
+var state={data:{},order:[],parts:new Map(),axis:{x:0.4,y:0.4},f:{sup:'',abc:'',q:''},sel:null,sort:{k:'avgSS',dir:-1}};
+
+function $(id){return document.getElementById(id);}
+function mean(a){var s=0;for(var i=0;i<a.length;i++)s+=a[i];return s/a.length;}
+function sd(a){var m=mean(a),s=0;for(var i=0;i<a.length;i++)s+=(a[i]-m)*(a[i]-m);return Math.sqrt(s/(a.length-1));}
+function fmt(n){return Math.round(n).toLocaleString('en-US');}
+function pct(n,d){return (n*100).toFixed(d===undefined?1:d)+'%';}
+function signPct(n){return (n>=0?'+':'')+(n*100).toFixed(1)+'%';}
+function niceMax(v){var m=Math.pow(10,Math.floor(Math.log10(v)));var ks=[1,1.2,1.5,2,2.5,3,4,5,6,8,10];for(var i=0;i<ks.length;i++){if(ks[i]*m>=v*1.08)return ks[i]*m;}return 10*m;}
+function niceScale(v){
+  var raw=Math.max(v,1)*1.08/5,m=Math.pow(10,Math.floor(Math.log10(raw))),ks=[1,2,2.5,5,10],step=10*m;
+  for(var i=0;i<ks.length;i++){if(ks[i]*m>=raw){step=ks[i]*m;break;}}
+  return {step:step,max:Math.ceil(Math.max(v,1)*1.08/step)*step};
+}
+function el(name,attrs,parent){var e=document.createElementNS(NS,name);for(var k in attrs)e.setAttribute(k,attrs[k]);if(parent)parent.appendChild(e);return e;}
+function txt(parent,x,y,s,attrs){var a={x:x,y:y,'font-size':11,fill:C.ink3};for(var k in (attrs||{}))a[k]=attrs[k];var t=el('text',a,parent);t.textContent=s;return t;}
+function h(tag,cls,text){var e=document.createElement(tag);if(cls)e.className=cls;if(text!==undefined)e.textContent=text;return e;}
+function clearNode(n){while(n.firstChild)n.removeChild(n.firstChild);}
+
+function parseCSV(text,delim){
+  if(text.charCodeAt(0)===0xFEFF)text=text.slice(1);
+  var rows=[],row=[],f='',q=false;
+  for(var i=0;i<text.length;i++){
+    var c=text[i];
+    if(q){
+      if(c==='"'){if(text[i+1]==='"'){f+='"';i++;}else q=false;}
+      else f+=c;
+    }else if(c==='"'){q=true;}
+    else if(c===delim){row.push(f);f='';}
+    else if(c==='\n'){row.push(f);rows.push(row);row=[];f='';}
+    else if(c!=='\r'){f+=c;}
+  }
+  if(f!==''||row.length){row.push(f);rows.push(row);}
+  return rows.filter(function(r){return r.some(function(x){return x.trim()!=='';});});
+}
+
+function calc(wk,lt,edi,cost){
+  var dm=mean(wk),ds=sd(wk),lm=mean(lt),ls=sd(lt);
+  var lu=lm,lsu=ls,over=false;
+  if(edi>0&&lm>0&&Math.abs(edi-lm)/lm>EDI_TOL){lu=edi;lsu=ls*EDI_STD_UP;over=true;}
+  var dd=dm/DAYS,dsd=ds/Math.sqrt(DAYS);
+  var ss=Z*Math.sqrt(lu*dsd*dsd+dd*dd*lsu*lsu);
+  return {wk:wk,lt:lt,edi:edi,cost:cost,dm:dm,ds:ds,lm:lm,ls:ls,dcv:dm>0?ds/dm:0,lcv:lm>0?ls/lm:0,ss:ss,over:over};
+}
+
+function detectDelim(text){
+  var first=text.split('\n')[0]||'';
+  var c={',':0,';':0,'\t':0},q=false;
+  for(var i=0;i<first.length;i++){
+    var ch=first[i];
+    if(ch==='"')q=!q;
+    else if(!q&&c[ch]!==undefined)c[ch]++;
+  }
+  var best=',';
+  if(c[';']>c[best])best=';';
+  if(c['\t']>c[best])best='\t';
+  return best;
+}
+function num(s,delim){
+  s=String(s===undefined?'':s).trim();
+  if(s==='')return NaN;
+  if(delim!==','&&/^-?\d+,\d+$/.test(s))s=s.replace(',','.');
+  return Number(s);
+}
+
+function parseFile(fileName,text){
+  if(text.charCodeAt(0)===0xFEFF)text=text.slice(1);
+  var delim=detectDelim(text);
+  var rows=parseCSV(text,delim);
+  if(rows.length<2)throw new Error('文件里没有数据行');
+  var head=rows[0].map(function(s){return s.trim();});
+  var miss=REQ.filter(function(c){return head.indexOf(c)<0;});
+  if(miss.length)throw new Error('缺少这些列：'+miss.join('、'));
+  var ix={};head.forEach(function(x,i){ix[x]=i;});
+  var base=fileName.replace(/\.[^.]*$/,'');
+  var byQ={},skipped=0,total=0,dup=0,noCost=0;
+  for(var r=1;r<rows.length;r++){
+    var row=rows[r];
+    var no=(row[ix.Part_No]||'').trim();
+    if(!no){skipped++;continue;}
+    var wk=WKK.map(function(k){return num(row[ix[k]],delim);});
+    var lt=LTK.map(function(k){return num(row[ix[k]],delim);});
+    var edi=num(row[ix.EDI_LeadTime_days],delim);
+    var cost=num(row[ix.Unit_Cost_EUR],delim);
+    var bad=wk.concat(lt,[edi]).some(function(v){return !isFinite(v);})||wk.some(function(v){return v<0;})||lt.some(function(v){return v<=0;})||edi<0;
+    if(bad){skipped++;continue;}
+    var ql=(row[ix.Quarter]||'').trim()||base;
+    if(!byQ[ql])byQ[ql]=new Map();
+    if(byQ[ql].has(no))dup++;
+    if(!isFinite(cost)||cost<0)noCost++;
+    byQ[ql].set(no,{desc:(row[ix.Part_Desc]||'').trim(),supplier:(row[ix.Supplier]||'').trim(),region:(row[ix.Region]||'').trim(),abc:(row[ix.ABC_Class]||'').trim(),cost:(isFinite(cost)&&cost>=0)?cost:0,rec:calc(wk,lt,edi,(isFinite(cost)&&cost>=0)?cost:0)});
+    total++;
+  }
+  if(!Object.keys(byQ).length)throw new Error('没有读到有效的数据行');
+  return {byQ:byQ,rows:total,skipped:skipped,dup:dup,noCost:noCost};
+}
+function ingest(fileName,text){
+  var r=parseFile(fileName,text);
+  r.labels=Object.keys(r.byQ);
+  r.labels.forEach(function(l){state.data[l]=r.byQ[l];});
+  return r;
+}
+
+function rebuild(){
+  state.order=Object.keys(state.data).sort(function(a,b){return a.localeCompare(b,'zh',{numeric:true});});
+  var parts=new Map();
+  state.order.forEach(function(q){
+    state.data[q].forEach(function(v,no){
+      var p=parts.get(no);
+      if(!p){p={no:no,recs:{}};parts.set(no,p);}
+      p.desc=v.desc;p.supplier=v.supplier;p.region=v.region;p.abc=v.abc;p.cost=v.cost;
+      p.recs[q]=v.rec;
+    });
+  });
+  var n=state.order.length,L=state.order[n-1],P=state.order[n-2];
+  var mx=0.1,my=0.1;
+  parts.forEach(function(p){
+    p.qs=state.order.filter(function(q){return p.recs[q];});
+    p.avgD=mean(p.qs.map(function(q){return p.recs[q].dcv;}));
+    p.avgL=mean(p.qs.map(function(q){return p.recs[q].lcv;}));
+    p.avgSS=mean(p.qs.map(function(q){return p.recs[q].ss;}));
+    var ssv=p.qs.map(function(q){return p.recs[q].ss;});
+    p.ssCV=(ssv.length>=2&&mean(ssv)>0)?sd(ssv)/mean(ssv):null;
+    p.chg=(P&&p.recs[L]&&p.recs[P]&&p.recs[P].ss>0)?(p.recs[L].ss-p.recs[P].ss)/p.recs[P].ss:null;
+    mx=Math.max(mx,p.avgD);my=Math.max(my,p.avgL);
+  });
+  state.parts=parts;
+  state.axis={x:axisMax(mx),y:axisMax(my)};
+  if(state.sel&&!parts.has(state.sel))state.sel=null;
+}
+function axisMax(v){var s=v<0.3?0.05:0.1;return Math.max(0.2,Math.ceil(v*1.06/s)*s);}
+function axisStep(mx){return mx<=0.3?0.05:0.1;}
+
+function visible(){
+  var f=state.f,q=f.q.toLowerCase(),out=[];
+  state.parts.forEach(function(p){
+    if(f.sup&&p.supplier!==f.sup)return;
+    if(f.abc&&p.abc!==f.abc)return;
+    if(q&&(p.no+' '+p.desc).toLowerCase().indexOf(q)<0)return;
+    out.push(p);
+  });
+  return out;
+}
+
+function topFive(vis){
+  return vis.filter(function(p){return p.ssCV!==null;}).sort(function(a,b){return b.ssCV-a.ssCV;}).slice(0,5);
+}
+
+var tip=$('tip');
+function tipShow(lines,e){
+  clearNode(tip);
+  lines.forEach(function(l,i){
+    var d=document.createElement('div');
+    if(i===0){var b=document.createElement('b');b.textContent=l;d.appendChild(b);}else d.textContent=l;
+    tip.appendChild(d);
+  });
+  tip.style.display='block';
+  tipMove(e);
+}
+function tipMove(e){
+  var w=tip.offsetWidth,hh=tip.offsetHeight,x=e.clientX+14,y=e.clientY+14;
+  if(x+w>window.innerWidth-8)x=e.clientX-w-14;
+  if(y+hh>window.innerHeight-8)y=e.clientY-hh-14;
+  tip.style.left=Math.max(4,x)+'px';tip.style.top=Math.max(4,y)+'px';
+}
+function tipHide(){tip.style.display='none';}
+function bindTip(node,lines){
+  node.addEventListener('mouseenter',function(e){tipShow(lines,e);});
+  node.addEventListener('mousemove',tipMove);
+  node.addEventListener('mouseleave',tipHide);
+}
+
+function select(no,fromTable){
+  state.sel=no;
+  renderMatrix();renderDetail();renderTable();
+  if(fromTable&&$('detailCard').scrollIntoView){$('detailCard').scrollIntoView({behavior:'smooth',block:'start'});}
+}
+
+function renderChips(){
+  var box=$('chips');clearNode(box);
+  state.order.forEach(function(q){
+    var c=h('span','chip',q);
+    var s=h('small','',state.data[q].size+' 个料号');c.appendChild(s);
+    var b=h('button','','×');b.type='button';b.setAttribute('aria-label','移除 '+q);
+    b.addEventListener('click',function(){delete state.data[q];afterData();});
+    c.appendChild(b);box.appendChild(c);
+  });
+  var m=h('span','msg',state.msg||(state.order.length?'':'可以一次选多个季度的文件，也可以把文件拖进页面'));
+  m.id='msg';if(state.msgCls)m.className='msg '+state.msgCls;
+  box.appendChild(m);
+  $('clear').hidden=!state.order.length;
+}
+function setMsg(s,cls){state.msg=s;state.msgCls=cls||'';}
+
+function renderFilters(){
+  var sups={},abcs={};
+  state.parts.forEach(function(p){if(p.supplier)sups[p.supplier]=1;if(p.abc)abcs[p.abc]=1;});
+  fill($('fSup'),Object.keys(sups).sort(),state.f.sup,'全部供应商');
+  fill($('fAbc'),Object.keys(abcs).sort(),state.f.abc,'全部类别');
+  function fill(sel,list,cur,all){
+    clearNode(sel);
+    var o=h('option','',all);o.value='';sel.appendChild(o);
+    list.forEach(function(v){var x=h('option','',v);x.value=v;sel.appendChild(x);});
+    sel.value=list.indexOf(cur)>=0?cur:'';
+  }
+  if($('fSup').value!==state.f.sup)state.f.sup=$('fSup').value;
+  if($('fAbc').value!==state.f.abc)state.f.abc=$('fAbc').value;
+}
+
+function stat(label,value,note,noteCls){
+  var d=h('div','stat');
+  d.appendChild(h('div','stat-label',label));
+  d.appendChild(h('div','stat-value',value));
+  var n=h('div','stat-note'+(noteCls?' '+noteCls:''),note);d.appendChild(n);
+  return d;
+}
+function deltaNote(cur,prev,label){
+  if(prev===null||prev===undefined||prev===0)return {t:'只有一个季度，暂无对比',c:'flat'};
+  var r=(cur-prev)/prev;
+  var arrow=r>0.0005?'▲ ':(r<-0.0005?'▼ ':'');
+  return {t:arrow+signPct(r)+' '+label,c:r>0.0005?'up':(r<-0.0005?'down':'flat')};
+}
+function renderStats(vis){
+  var box=$('stats');clearNode(box);
+  var n=state.order.length,L=state.order[n-1],P=state.order[n-2];
+  var all=vis.filter(function(p){return p.recs[L];});
+  var pairs=[];
+  if(P)vis.forEach(function(p){if(p.recs[L]&&p.recs[P])pairs.push([p.recs[L],p.recs[P]]);});
+  var sumL=0,valL=0,dsum=0,lsum=0;
+  all.forEach(function(p){var a=p.recs[L];sumL+=a.ss;valL+=a.ss*a.cost;dsum+=a.dcv;lsum+=a.lcv;});
+  var sL=0,sP=0,vL=0,vP=0,dL=[],dP=[],lL=[],lP=[];
+  pairs.forEach(function(x){sL+=x[0].ss;sP+=x[1].ss;vL+=x[0].ss*x[0].cost;vP+=x[1].ss*x[1].cost;dL.push(x[0].dcv);dP.push(x[1].dcv);lL.push(x[0].lcv);lP.push(x[1].lcv);});
+  var partial=pairs.length&&pairs.length<all.length?'（仅比较两个季度都有的 '+pairs.length+' 个料号）':'';
+  var totalAll=state.parts.size;
+  box.appendChild(stat('料号数',String(vis.length),vis.length<totalAll?'共 '+totalAll+' 个，已按筛选缩小':'已加载 '+state.order.join('、'),'flat'));
+  var d1=deltaNote(sL,pairs.length?sP:null,'较 '+P+partial);
+  var d2=deltaNote(vL,pairs.length?vP:null,'较 '+P+partial);
+  box.appendChild(stat(L+' 安全库存合计',fmt(sumL)+' 件',d1.t,d1.c));
+  box.appendChild(stat(L+' 安全库存金额','€'+fmt(valL),d2.t,d2.c));
+  function ppNote(curArr,prevArr){
+    if(!pairs.length)return {t:'只有一个季度，暂无对比',c:'flat'};
+    var pd=(mean(curArr)-mean(prevArr))*100,arrow=pd>0.05?'▲ ':(pd<-0.05?'▼ ':'');
+    return {t:arrow+(pd>=0?'+':'')+pd.toFixed(1)+' 个百分点 较 '+P+partial,c:pd>0.05?'up':(pd<-0.05?'down':'flat')};
+  }
+  var n1=ppNote(dL,dP),n2=ppNote(lL,lP);
+  box.appendChild(stat(L+' 平均需求波动',pct(all.length?dsum/all.length:0),n1.t,n1.c));
+  box.appendChild(stat(L+' 平均交期波动',pct(all.length?lsum/all.length:0),n2.t,n2.c));
+}
+
+function renderMatrix(){
+  var host=$('matrix');clearNode(host);
+  var vis=visible();
+  var top5=topFive(vis),red={};top5.forEach(function(p,i){red[p.no]=i+1;});
+  $('mxCap').textContent='位置是各季度波动的平均值，圆圈大小是各季度安全库存的平均值。越靠右上越不稳。点击圆圈，看这个料号每个季度的位置。当前显示 '+vis.length+' 个料号。';
+  var lg=$('mxLegend');
+  lg.innerHTML=state.order.length>1?'<span><i class="sw" style="border-radius:50%;background:'+C.red+'"></i>安全库存波动最大的前 5 个（各季度安全库存的变异系数）</span><span><i class="sw" style="border-radius:50%;background:'+C.petrol+';opacity:.5"></i>其他料号</span>':'<span>上传两个及以上季度后，安全库存波动最大的 5 个料号会标成红色</span>';
+  var W=Math.max(320,host.clientWidth||900),H=Math.round(Math.min(540,Math.max(340,W*0.5)));
+  var ml=58,mr=18,mt=12,mb=50;
+  var svg=el('svg',{width:W,height:H,viewBox:'0 0 '+W+' '+H,role:'group','aria-label':'波动矩阵'},host);
+  var ax=state.axis,xs=axisStep(ax.x),ys=axisStep(ax.y);
+  function px(v){return ml+(v/ax.x)*(W-ml-mr);}
+  function py(v){return H-mb-(v/ax.y)*(H-mt-mb);}
+  for(var v=0;v<=ax.x+1e-9;v+=xs){el('line',{x1:px(v),x2:px(v),y1:mt,y2:H-mb,stroke:C.grid,'stroke-width':1},svg);txt(svg,px(v),H-mb+17,Math.round(v*100)+'%',{'text-anchor':'middle'});}
+  for(var w=0;w<=ax.y+1e-9;w+=ys){el('line',{x1:ml,x2:W-mr,y1:py(w),y2:py(w),stroke:C.grid,'stroke-width':1},svg);txt(svg,ml-8,py(w)+4,Math.round(w*100)+'%',{'text-anchor':'end'});}
+  txt(svg,(ml+W-mr)/2,H-8,'需求波动（8 周出库量的变异系数，各季平均）',{'text-anchor':'middle','font-size':12,fill:C.ink2});
+  txt(svg,14,(mt+H-mb)/2,'交期波动（6 笔交货天数的变异系数，各季平均）',{'text-anchor':'middle','font-size':12,fill:C.ink2,transform:'rotate(-90 14 '+((mt+H-mb)/2)+')'});
+  var maxSS=0;state.parts.forEach(function(p){maxSS=Math.max(maxSS,p.avgSS);});
+  function rad(a){return 4+Math.sqrt(a/(maxSS||1))*15;}
+  var g=el('g',{},svg);
+  vis.slice().sort(function(a,b){
+    var ra=red[a.no]?1:0,rb=red[b.no]?1:0;
+    if(ra!==rb)return ra-rb;
+    return b.avgSS-a.avgSS;
+  }).forEach(function(p){
+    var isRed=!!red[p.no],col=isRed?C.red:C.petrol;
+    var c=el('circle',{cx:px(p.avgD),cy:py(p.avgL),r:rad(p.avgSS),fill:col,'fill-opacity':isRed?0.6:0.36,stroke:col,'stroke-width':isRed?1.6:1,'class':'dot',tabindex:0,role:'button','aria-label':p.no+' '+p.desc+'，平均安全库存 '+fmt(p.avgSS)+' 件'+(isRed?'，安全库存波动第 '+red[p.no]+' 名':'')},g);
+    var lines=[p.no+'  '+p.desc,p.supplier+'  ABC '+p.abc,'平均安全库存 '+fmt(p.avgSS)+' 件','需求波动 '+pct(p.avgD)+'，交期波动 '+pct(p.avgL)];
+    if(p.ssCV!==null)lines.push('安全库存季度间波动 '+pct(p.ssCV)+(isRed?'（第 '+red[p.no]+' 名）':''));
+    bindTip(c,lines);
+    c.addEventListener('click',function(){select(p.no,false);});
+    c.addEventListener('keydown',function(e){if(e.key==='Enter'||e.key===' '){e.preventDefault();select(p.no,false);}});
+  });
+  top5.forEach(function(p){
+    var cx=px(p.avgD),cy=py(p.avgL),r=rad(p.avgSS),left=cx>W-mr-60;
+    txt(svg,cx+(left?-r-4:r+4),cy+4,p.no,{'class':'halo','text-anchor':left?'end':'start','font-size':11,fill:C.red,'font-weight':600,'pointer-events':'none'});
+  });
+  var sp=state.sel?state.parts.get(state.sel):null;
+  if(sp&&vis.indexOf(sp)>=0){
+    var tg=el('g',{'pointer-events':'none'},svg);
+    var pts=sp.qs.map(function(q){
+      var r=sp.recs[q],out=r.dcv>ax.x||r.lcv>ax.y;
+      return [px(Math.min(r.dcv,ax.x)),py(Math.min(r.lcv,ax.y)),q+(out?'（需求 '+pct(r.dcv,0)+'，交期 '+pct(r.lcv,0)+'）':''),out];
+    });
+    if(pts.length>1)el('polyline',{points:pts.map(function(t){return t[0]+','+t[1];}).join(' '),fill:'none',stroke:C.deep,'stroke-width':1.4,'stroke-dasharray':'5 4'},tg);
+    el('circle',{cx:px(sp.avgD),cy:py(sp.avgL),r:rad(sp.avgSS)+3,fill:'none',stroke:C.deep,'stroke-width':2},tg);
+    pts.forEach(function(t){
+      el('circle',{cx:t[0],cy:t[1],r:5,fill:t[3]?C.deep:'#fff',stroke:C.deep,'stroke-width':1.6},tg);
+      var left=t[0]>W-mr-170,low=t[1]<mt+22;
+      txt(tg,t[0]+(left?-8:8),low?t[1]+17:t[1]-7,t[2],{'class':'halo','text-anchor':left?'end':'start','font-size':12,fill:C.deep,'font-weight':600});
+    });
+    var ay=py(sp.avgL)-rad(sp.avgSS)-8;if(ay<mt+16)ay=py(sp.avgL)+rad(sp.avgSS)+17;
+    txt(tg,px(sp.avgD),ay,sp.no,{'class':'halo','text-anchor':'middle','font-size':12,fill:C.deep,'font-weight':600});
+  }
+  if(!vis.length){txt(svg,W/2,H/2,'没有符合筛选条件的料号',{'text-anchor':'middle','font-size':14});}
+}
+
+function renderDetail(){
+  var host=$('detail');clearNode(host);
+  var p=state.sel?state.parts.get(state.sel):null;
+  if(!p){host.appendChild(h('div','placeholder','点击矩阵里的圆圈或下方表格里的料号，查看它每个季度的位置、需求和交期。'));return;}
+  var head=h('div','part-head');
+  head.appendChild(h('span','part-no',p.no));
+  head.appendChild(h('span','part-desc',p.desc));
+  var t5=topFive(visible()),ti=t5.indexOf(p);
+  if(ti>=0)head.appendChild(h('span','tag-red','安全库存波动第 '+(ti+1)+' 名'));
+  host.appendChild(head);
+  var kv=h('div','kv');
+  [['供应商',p.supplier+(p.region?'（'+p.region+'）':'')],['ABC 类别',p.abc],['单价','€'+p.cost.toFixed(2)]].forEach(function(a){
+    var s=h('span','');s.appendChild(document.createTextNode(a[0]+' '));s.appendChild(h('b','',a[1]));kv.appendChild(s);
+  });
+  host.appendChild(kv);
+  var strip=h('div','qstrip');
+  p.qs.forEach(function(q,i){
+    var r=p.recs[q],c=h('div','qcard');
+    var top=h('div','ql','安全库存 '+q);
+    if(r.over)top.appendChild(h('span','tag','采用 EDI 交期'));
+    c.appendChild(top);
+    c.appendChild(h('div','qv',fmt(r.ss)+' 件'));
+    var pr=i>0?p.recs[p.qs[i-1]]:null;
+    if(pr&&pr.ss>0){var d=(r.ss-pr.ss)/pr.ss;c.appendChild(h('div','qd '+(d>0.0005?'up':(d<-0.0005?'down':'flat')),(d>0.0005?'▲ ':(d<-0.0005?'▼ ':''))+signPct(d)+' 较 '+p.qs[i-1]));}
+    else c.appendChild(h('div','qd flat','首个季度'));
+    strip.appendChild(c);
+  });
+  host.appendChild(strip);
+
+  host.appendChild(h('div','chart-title','需求波动：每季 8 周出库量'));
+  host.appendChild(h('div','chart-sub','虚线是当季 8 周的均值，右上角是当季需求波动'));
+  var d1=h('div','');d1.id='chDemand';host.appendChild(d1);
+
+  host.appendChild(h('div','chart-title','交期波动：每季 6 笔交货对比 EDI 通知交期'));
+  var lg=h('div','legend');
+  lg.innerHTML='<span><i class="sw" style="background:'+C.amber+'"></i>比 EDI 通知的晚</span><span><i class="sw" style="background:'+C.sky+'"></i>不晚于 EDI</span><span><i class="ln dash" style="border-color:'+C.grey+'"></i>EDI 通知交期</span><span><i class="ln" style="border-color:'+C.deep+'"></i>每季历史均值</span>';
+  host.appendChild(lg);
+  var d2=h('div','');d2.id='chLT';host.appendChild(d2);
+  drawDemand(d1,p);drawLT(d2,p);
+}
+
+function frame(svg,W,ml,mr,mt,B,sc,unit,n,gap,p){
+  var bw=(W-ml-mr-(n-1)*gap)/n,ymax=sc.max;
+  for(var v=0;v<=ymax+1e-9;v+=sc.step){
+    var y=B-(v/ymax)*(B-mt);
+    el('line',{x1:ml,x2:W-mr,y1:y,y2:y,stroke:C.grid,'stroke-width':1},svg);
+    txt(svg,ml-8,y+4,String(Math.round(v*10)/10),{'text-anchor':'end'});
+  }
+  txt(svg,ml-8,mt-8,unit,{'text-anchor':'end'});
+  for(var k=0;k<n;k++){
+    var x=ml+k*(bw+gap);
+    if(k%2===1)el('rect',{x:x,y:mt,width:bw,height:B-mt,fill:'#F3F6F7'},svg);
+    txt(svg,x+bw/2,B+17,p.qs[k],{'text-anchor':'middle','font-size':12,fill:C.ink2});
+  }
+  return bw;
+}
+
+function drawDemand(host,p){
+  var W=Math.max(320,host.clientWidth||900),H=232,ml=52,mr=10,mt=24,mb=34,gap=12,B=H-mb,n=p.qs.length;
+  var svg=el('svg',{width:W,height:H,viewBox:'0 0 '+W+' '+H,role:'img','aria-label':'每季 8 周出库量折线图'},host);
+  var mx=0;p.qs.forEach(function(q){p.recs[q].wk.forEach(function(v){mx=Math.max(mx,v);});});
+  var sc=niceScale(mx||1),ymax=sc.max;
+  var bw=frame(svg,W,ml,mr,mt,B,sc,'件/周',n,gap,p);
+  function Y(v){return B-(v/ymax)*(B-mt);}
+  p.qs.forEach(function(q,k){
+    var r=p.recs[q],x0=ml+k*(bw+gap),pad=Math.min(12,bw*0.08);
+    function X(i){return x0+pad+i*(bw-2*pad)/(r.wk.length-1);}
+    el('line',{x1:x0,x2:x0+bw,y1:Y(r.dm),y2:Y(r.dm),stroke:C.grey,'stroke-width':1,'stroke-dasharray':'4 3'},svg);
+    el('polyline',{points:r.wk.map(function(v,i){return X(i)+','+Y(v);}).join(' '),fill:'none',stroke:C.blue,'stroke-width':2,'stroke-linejoin':'round'},svg);
+    r.wk.forEach(function(v,i){
+      var c=el('circle',{cx:X(i),cy:Y(v),r:3.2,fill:C.blue,stroke:'#fff','stroke-width':1.5},svg);
+      bindTip(c,[q+' 第 '+(i+1)+' 周','出库 '+fmt(v)+' 件','当季均值 '+fmt(r.dm)+' 件']);
+    });
+    txt(svg,x0+bw-4,mt+12,'波动 '+pct(r.dcv,0),{'text-anchor':'end','font-size':12,fill:C.ink2,'font-weight':600});
+  });
+}
+
+function drawLT(host,p){
+  var W=Math.max(320,host.clientWidth||900),H=252,ml=52,mr=10,mt=24,mb=52,gap=12,B=H-mb,n=p.qs.length;
+  var svg=el('svg',{width:W,height:H,viewBox:'0 0 '+W+' '+H,role:'img','aria-label':'每季 6 笔交货天数柱状图，叠加 EDI 通知交期'},host);
+  var mx=0;p.qs.forEach(function(q){var r=p.recs[q];r.lt.forEach(function(v){mx=Math.max(mx,v);});mx=Math.max(mx,r.edi);});
+  var sc=niceScale(mx||1),ymax=sc.max;
+  var bw=frame(svg,W,ml,mr,mt,B,sc,'天',n,gap,p);
+  function Y(v){return B-(v/ymax)*(B-mt);}
+  var pts=[];
+  p.qs.forEach(function(q,k){
+    var r=p.recs[q],x0=ml+k*(bw+gap),slot=bw/r.lt.length,barW=Math.min(22,slot*0.62);
+    r.lt.forEach(function(v,i){
+      var cx=x0+(i+0.5)*slot;
+      var b=el('rect',{x:cx-barW/2,y:Y(v),width:barW,height:Math.max(0,B-Y(v)),rx:2,fill:(r.edi>0&&v>r.edi)?C.amber:C.sky},svg);
+      var d=v-r.edi;
+      bindTip(b,r.edi>0?[q+' 第 '+(i+1)+' 笔','实际交期 '+v+' 天','EDI 通知 '+r.edi+' 天'+(d===0?'，一致':(d>0?'，晚 '+d+' 天':'，早 '+(-d)+' 天'))]:[q+' 第 '+(i+1)+' 笔','实际交期 '+v+' 天','本季没有 EDI 通知']);
+    });
+    if(r.edi>0){
+      el('line',{x1:x0,x2:x0+bw,y1:Y(r.edi),y2:Y(r.edi),stroke:C.grey,'stroke-width':1.6,'stroke-dasharray':'5 3'},svg);
+      if(bw>=110)txt(svg,x0+4,Y(r.edi)-5,'EDI '+r.edi,{'class':'halo','fill':C.grey,'font-size':11});
+    }else if(bw>=90)txt(svg,x0+bw/2,B+34,'本季无 EDI 通知',{'text-anchor':'middle','font-size':11,fill:C.ink3});
+    pts.push([x0+bw/2,Y(r.lm),r.lm,q]);
+    if(r.over)txt(svg,x0+bw/2,B+34,'采用 EDI 交期',{'text-anchor':'middle','font-size':11,fill:'#8A4E0F'});
+  });
+  if(pts.length>1)el('polyline',{points:pts.map(function(t){return t[0]+','+t[1];}).join(' '),fill:'none',stroke:C.deep,'stroke-width':2.5,'stroke-linejoin':'round','stroke-linecap':'round'},svg);
+  pts.forEach(function(t){
+    var c=el('circle',{cx:t[0],cy:t[1],r:5,fill:C.deep,stroke:'#fff','stroke-width':2},svg);
+    bindTip(c,[t[3]+' 历史均值','6 笔均值 '+t[2].toFixed(1)+' 天']);
+    if(bw>=90)txt(svg,t[0],t[1]-11,t[2].toFixed(1)+' 天',{'class':'halo','text-anchor':'middle','fill':C.deep,'font-size':11,'font-weight':600});
+  });
+}
+
+function renderTable(){
+  var box=$('tbl');clearNode(box);
+  var vis=visible(),order=state.order;
+  var cols=[
+    {k:'no',t:'料号',g:function(p){return p.no;}},
+    {k:'desc',t:'描述',g:function(p){return p.desc;}},
+    {k:'supplier',t:'供应商',g:function(p){return p.supplier;}},
+    {k:'abc',t:'ABC',g:function(p){return p.abc;}},
+    {k:'avgD',t:'需求波动',num:1,g:function(p){return p.avgD;},f:function(v){return pct(v);}},
+    {k:'avgL',t:'交期波动',num:1,g:function(p){return p.avgL;},f:function(v){return pct(v);}}
+  ];
+  order.forEach(function(q){cols.push({k:'ss_'+q,t:q+' 安全库存',num:1,g:function(p){return p.recs[q]?p.recs[q].ss:null;},f:fmt});});
+  if(order.length>1)cols.push({k:'chg',t:'最新季较上季',num:1,g:function(p){return p.chg;},chg:1});
+  if(order.length>1)cols.push({k:'ssCV',t:'安全库存波动',num:1,g:function(p){return p.ssCV;},f:function(v){return pct(v);}});
+  cols.push({k:'avgSS',t:'平均安全库存',num:1,g:function(p){return p.avgSS;},f:fmt});
+  var sc=cols.filter(function(c){return c.k===state.sort.k;})[0]||cols[cols.length-1];
+  var dir=state.sort.dir;
+  var rows=vis.slice().sort(function(a,b){
+    var x=sc.g(a),y=sc.g(b);
+    if(x===null&&y===null)return 0;if(x===null)return 1;if(y===null)return -1;
+    if(typeof x==='string')return dir*x.localeCompare(y,'zh',{numeric:true});
+    return dir*(x-y);
+  });
+  $('tblCap').textContent='共 '+rows.length+' 个料号，点表头排序，点某一行查看详情。'+(order.length>1?'红点是安全库存波动最大的前 5 个。':'');
+  var t5={};topFive(vis).forEach(function(p,i){t5[p.no]=i+1;});
+  var t=h('table');var thead=h('thead'),tr=h('tr');
+  cols.forEach(function(c){
+    var th=h('th',c.num?'num':'');
+    th.setAttribute('aria-sort',c.k===sc.k?(dir>0?'ascending':'descending'):'none');
+    var b=h('button','',c.t);b.type='button';
+    if(c.k===sc.k)b.appendChild(h('span','sortmark',dir>0?'▲':'▼'));
+    b.addEventListener('click',function(){
+      if(state.sort.k===c.k)state.sort.dir*=-1;else{state.sort.k=c.k;state.sort.dir=c.num?-1:1;}
+      renderTable();
+    });
+    th.appendChild(b);tr.appendChild(th);
+  });
+  thead.appendChild(tr);t.appendChild(thead);
+  var tb=h('tbody');
+  rows.forEach(function(p){
+    var r=h('tr',p.no===state.sel?'sel':'');r.tabIndex=0;
+    cols.forEach(function(c){
+      var v=c.g(p),td=h('td',c.num?'num':'');
+      if(c.chg){
+        if(v===null)td.textContent='—';
+        else{td.className='num '+(v>0.0005?'up':(v<-0.0005?'down':'flat'));td.textContent=(v>0.0005?'▲ ':(v<-0.0005?'▼ ':''))+signPct(v);}
+      }else if(v===null||v===undefined)td.textContent='—';
+      else td.textContent=c.f?c.f(v):v;
+      if(c.k==='no'&&t5[p.no]){var dot=h('span','rdot');dot.title='安全库存波动第 '+t5[p.no]+' 名';td.insertBefore(dot,td.firstChild);}
+      r.appendChild(td);
+    });
+    r.addEventListener('click',function(){select(p.no,true);});
+    r.addEventListener('keydown',function(e){if(e.key==='Enter'||e.key===' '){e.preventDefault();select(p.no,true);}});
+    tb.appendChild(r);
+  });
+  t.appendChild(tb);box.appendChild(t);
+  if(!rows.length)box.appendChild(h('div','placeholder','没有符合筛选条件的料号'));
+}
+
+function renderAll(){
+  var has=state.order.length>0;
+  $('empty').hidden=has;$('app').hidden=!has;$('filters').hidden=!has;
+  renderChips();
+  if(!has)return;
+  renderFilters();
+  var vis=visible();
+  if(state.sel&&vis.indexOf(state.parts.get(state.sel))<0)state.sel=null;
+  renderStats(vis);renderMatrix();renderDetail();renderTable();
+}
+function afterData(){rebuild();renderAll();}
+
+function decodeBuf(buf){
+  try{return {text:new TextDecoder('utf-8',{fatal:true}).decode(buf),enc:'utf-8'};}catch(e){}
+  try{return {text:new TextDecoder('gb18030',{fatal:true}).decode(buf),enc:'gb18030'};}catch(e){}
+  return {text:new TextDecoder('windows-1252').decode(buf),enc:'windows-1252'};
+}
+function readFile(f){
+  return new Promise(function(res){
+    var r=new FileReader();
+    r.onload=function(){var d=decodeBuf(r.result);res({name:f.name,text:d.text,enc:d.enc});};
+    r.onerror=function(){res({name:f.name,error:'读取失败'});};
+    r.readAsArrayBuffer(f);
+  });
+}
+function handleFiles(list){
+  var files=Array.prototype.slice.call(list).filter(function(f){return /\.csv$/i.test(f.name)||f.type==='text/csv';});
+  if(!files.length){setMsg('请选择 .csv 文件','err');renderChips();return;}
+  Promise.all(files.map(readFile)).then(function(items){
+    var batch={},warns=[],errs=[];
+    items.forEach(function(it){
+      if(it.error){errs.push(it.name+'：'+it.error);return;}
+      try{
+        var r=parseFile(it.name,it.text);
+        Object.keys(r.byQ).forEach(function(l){
+          if(!batch[l])batch[l]=new Map();
+          r.byQ[l].forEach(function(v,no){batch[l].set(no,v);});
+        });
+        if(it.enc!=='utf-8')warns.push(it.name+' 不是 UTF-8 编码，已按 '+it.enc+' 读取，请核对文字是否正常');
+        if(r.skipped)warns.push(it.name+' 有 '+r.skipped+' 行数据不完整或含负数，已跳过');
+        if(r.dup)warns.push(it.name+' 有 '+r.dup+' 行料号重复，后面的行覆盖了前面的');
+        if(r.noCost)warns.push(it.name+' 有 '+r.noCost+' 行缺少单价，这些料号的金额按 0 计算');
+      }catch(e){errs.push(it.name+'：'+e.message);}
+    });
+    var labels=Object.keys(batch);
+    labels.forEach(function(l){state.data[l]=batch[l];});
+    var all=errs.concat(warns);
+    if(errs.length)setMsg(all.join('；')+(labels.length?'。已加载 '+labels.join('、'):''),'err');
+    else if(warns.length)setMsg('已加载 '+labels.join('、')+'。注意：'+warns.join('；'),'err');
+    else setMsg('已加载 '+labels.join('、'),'ok');
+    afterData();
+  });
+}
+
+$('pick').addEventListener('click',function(){$('file').click();});
+$('file').addEventListener('change',function(e){if(e.target.files.length)handleFiles(e.target.files);e.target.value='';});
+$('clear').addEventListener('click',function(){state.data={};state.sel=null;state.f={sup:'',abc:'',q:''};setMsg('');$('fSearch').value='';afterData();});
+$('fSup').addEventListener('change',function(e){state.f.sup=e.target.value;renderAll();});
+$('fAbc').addEventListener('change',function(e){state.f.abc=e.target.value;renderAll();});
+$('fSearch').addEventListener('input',function(e){state.f.q=e.target.value.trim();renderAll();});
+$('fReset').addEventListener('click',function(){state.f={sup:'',abc:'',q:''};$('fSearch').value='';renderAll();});
+
+var dragDepth=0;
+window.addEventListener('dragenter',function(e){e.preventDefault();dragDepth++;document.body.classList.add('drag');});
+window.addEventListener('dragover',function(e){e.preventDefault();});
+window.addEventListener('dragleave',function(e){e.preventDefault();dragDepth=Math.max(0,dragDepth-1);if(!dragDepth)document.body.classList.remove('drag');});
+window.addEventListener('drop',function(e){e.preventDefault();dragDepth=0;document.body.classList.remove('drag');if(e.dataTransfer&&e.dataTransfer.files.length)handleFiles(e.dataTransfer.files);});
+
+var rt=null,lastW=0;
+window.addEventListener('resize',function(){
+  clearTimeout(rt);
+  rt=setTimeout(function(){
+    if(!state.order.length)return;
+    var w=$('matrix').clientWidth;if(w===lastW)return;lastW=w;
+    renderMatrix();renderDetail();
+  },120);
+});
+
+window.__dash={state:state,handleFiles:handleFiles,ingest:ingest,afterData:afterData,select:select,visible:visible,renderAll:renderAll};
+renderAll();
+})();
+</script>
+</body>
+</html>
